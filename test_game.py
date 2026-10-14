@@ -95,11 +95,11 @@ class TestCheckWinner(unittest.TestCase):
         Full board with no winner should return None.
         Layout:
           X O X
-          O X O
-          X O X
+          O O X
+          X X O
         """
         b = Board()
-        cells = ["X", "O", "X", "O", "X", "O", "X", "O", "X"]
+        cells = ["X", "O", "X", "O", "O", "X", "X", "X", "O"]
         b.cells = cells
         w = check_winner(b)
         self.assertIsNone(w, f"full board with no winner should have no winner, got {w}")
@@ -117,7 +117,7 @@ class TestCheckWinner(unittest.TestCase):
 class TestCheckDraw(unittest.TestCase):
     def test_draw_full_board_no_winner(self):
         b = Board()
-        cells = ["X", "O", "X", "O", "X", "O", "X", "O", "X"]
+        cells = ["X", "O", "X", "O", "O", "X", "X", "X", "O"]
         b.cells = cells
         self.assertTrue(check_draw(b))
 
@@ -155,15 +155,15 @@ class TestGetAvailableMoves(unittest.TestCase):
 
 class TestPlayGame(unittest.TestCase):
     def test_x_wins(self):
-        winner, board = play_game("X", "O", [0, 1, 2, 3, 4])
+        winner, board = play_game("X", "O", [0, 1, 2, 3, 4, 5, 6])
         self.assertEqual(winner, "X")
 
     def test_o_wins(self):
-        winner, board = play_game("X", "O", [0, 1, 3, 4, 5])
+        winner, board = play_game("X", "O", [1, 0, 3, 2, 5, 4, 7, 6])
         self.assertEqual(winner, "O")
 
     def test_draw(self):
-        winner, board = play_game("X", "O", [0, 1, 2, 3, 4, 5, 6, 7, 8])
+        winner, board = play_game("X", "O", [0, 1, 2, 4, 3, 6, 5, 8, 7])
         self.assertEqual(winner, "DRAW")
 
     def test_incomplete_game(self):
@@ -172,7 +172,7 @@ class TestPlayGame(unittest.TestCase):
 
     def test_invalid_move_skipped(self):
         """Duplicate move should be skipped, not crash."""
-        winner, board = play_game("X", "O", [0, 0, 1, 2, 3])
+        winner, board = play_game("X", "O", [0, 0, 1, 5, 2, 6, 3])
         self.assertEqual(winner, "X")
 
 
