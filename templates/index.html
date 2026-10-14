@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tic Tac Toe — Play vs AI</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+      letter-spacing: -0.02em;
+    }
+    .subtitle {
+      font-size: 0.875rem;
+      color: #94a3b8;
+      margin-bottom: 1.5rem;
+    }
+    .status {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      min-height: 1.5rem;
+      text-align: center;
+      transition: color 0.2s;
+    }
+    .status.win  { color: #4ade80; }
+    .status.lose { color: #f87171; }
+    .status.draw { color: #fbbf24; }
+    .status.turn { color: #93c5fd; }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      width: 300px;
+      height: 300px;
+      margin-bottom: 1.5rem;
+    }
+    .cell {
+      background: #1e293b;
+      border: 2px solid #334155;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    }
+    .cell:hover:not(.taken):not(.game-over) {
+      background: #273549;
+      border-color: #475569;
+      transform: scale(1.03);
+    }
+    .cell.taken { cursor: default; }
+    .cell.x { color: #60a5fa; }
+    .cell.o { color: #f472b6; }
+    .cell.win-cell {
+      background: #166534;
+      border-color: #22c55e;
+      animation: pulse 0.6s ease-in-out infinite alternate;
+    }
+    @keyframes pulse {
+      from { transform: scale(1); }
+      to   { transform: scale(1.06); }
+    }
+    .controls {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    button {
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 0.55rem 1.25rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    button:active { transform: scale(0.97); }
+    .btn-new {
+      background: #3b82f6;
+      color: #fff;
+    }
+    .btn-new:hover { background: #2563eb; }
+    .btn-new:disabled { background: #334155; color: #64748b; cursor: default; }
+    .difficulty-group {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .difficulty-group label {
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+    select {
+      font-size: 0.9rem;
+      padding: 0.45rem 0.6rem;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #e2e8f0;
+      cursor: pointer;
+    }
+    .legend {
+      margin-top: 1.25rem;
+      font-size: 0.8rem;
+      color: #64748b;
+      text-align: center;
+    }
+    .legend span.x { color: #60a5fa; font-weight: 700; }
+    .legend span.o { color: #f472b6; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <h1>Tic Tac Toe</h1>
+  <p class="subtitle">You are <strong style="color:#f472b6">O</strong> &nbsp;·&nbsp; AI is <strong style="color:#60a5fa">X</strong></p>
+
+  <div id="status" class="status turn">Your turn — pick a cell</div>
+
+  <div class="board" id="board">
+    <div class="cell" data-pos="0"></div>
+    <div class="cell" data-pos="1"></div>
+    <div class="cell" data-pos="2"></div>
+    <div class="cell" data-pos="3"></div>
+    <div class="cell" data-pos="4"></div>
+    <div class="cell" data-pos="5"></div>
+    <div class="cell" data-pos="6"></div>
+    <div class="cell" data-pos="7"></div>
+    <div class="cell" data-pos="8"></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn-new" id="btn-new" onclick="newGame()">New Game</button>
+    <div class="difficulty-group">
+      <label for="difficulty">AI Difficulty:</label>
+      <select id="difficulty" onchange="setDifficulty(this.value)">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+    </div>
+  </div>
+
+  <p class="legend">
+    <span class="x">X</span> = AI &nbsp;·&nbsp; <span class="o">O</span> = You
+  </p>
+
+  <script>
+    // ── State ────────────────────────────────────────────────────────────────
+    let board = Array(9).fill(null);
+    let currentPlayer = "O";   // player is always O
+    let winner = null;
+    let draw = false;
+    let aiThinking = false;
+
+    const WIN_LINES = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    // ── DOM refs ─────────────────────────────────────────────────────────────
+    const cells = document.querySelectorAll(".cell");
+    const statusEl = document.getElementById("status");
+    const btnNew = document.getElementById("btn-new");
+
+    // ── Render ───────────────────────────────────────────────────────────────
+    function render() {
+      cells.forEach((el, i) => {
+        const mark = board[i];
+        el.textContent = mark || "";
+        el.className = "cell" + (mark ? " taken " + mark.toLowerCase() : "");
+      });
+      updateStatus();
+    }
+
+    function updateStatus() {
+      if (winner === "X") {
+        statusEl.textContent = "AI (X) wins! 🤖";
+        statusEl.className = "status lose";
+        highlightWinningLine("X");
+      } else if (winner === "O") {
+        statusEl.textContent = "You win! 🎉";
+        statusEl.className = "status win";
+        highlightWinningLine("O");
+      } else if (draw) {
+        statusEl.textContent = "It's a draw! 🤝";
+        statusEl.className = "status draw";
+      } else if (currentPlayer === "O") {
+        statusEl.textContent = "Your turn — pick a cell";
+        statusEl.className = "status turn";
+      } else {
+        statusEl.textContent = "AI is thinking…";
+        statusEl.className = "status turn";
+      }
+    }
+
+    function highlightWinningLine(mark) {
+      for (const [a, b, c] of WIN_LINES) {
+        if (board[a] === mark && board[b] === mark && board[c] === mark) {
+          [a, b, c].forEach(i => cells[i].classList.add("win-cell"));
+          break;
+        }
+      }
+    }
+
+    // ── Player move ──────────────────────────────────────────────────────────
+    cells.forEach(el => {
+      el.addEventListener("click", () => {
+        const pos = parseInt(el.dataset.pos, 10);
+        if (winner || draw || aiThinking || board[pos] !== null) return;
+        if (currentPlayer !== "O") return;
+
+        board[pos] = "O";
+        render();
+
+        winner = checkWinner(board);
+        if (winner) { render(); return; }
+        if (isFull(board)) { draw = true; render(); return; }
+
+        // AI's turn
+        currentPlayer = "X";
+        aiThinking = true;
+        render();
+        setTimeout(() => aiMove(), 400);
+      });
+    });
+
+    // ── AI move (client-side mirror of server logic) ─────────────────────────
+    function aiMove() {
+      const difficulty = document.getElementById("difficulty").value;
+      const move = chooseAIMove(board, difficulty);
+      if (move === null) { aiThinking = false; return; }
+
+      board[move] = "X";
+      aiThinking = false;
+      currentPlayer = "O";
+
+      winner = checkWinner(board);
+      if (winner) { render(); return; }
+      if (isFull(board)) { draw = true; render(); return; }
+      render();
+    }
+
+    function chooseAIMove(b, difficulty) {
+      const available = [];
+      for (let i = 0; i < 9; i++) if (b[i] === null) available.push(i);
+      if (available.length === 0) return null;
+
+      if (difficulty === "easy") {
+        return available[Math.floor(Math.random() * available.length)];
+      }
+      if (difficulty === "medium") {
+        if (Math.random() < 0.5) {
+          const m = minimax(b, true, 0);
+          if (m.move !== null) return m.move;
+        }
+        return available[Math.floor(Math.random() * available.length)];
+      }
+      // hard
+      const m = minimax(b, true, 0);
+      return m.move !== null ? m.move : available[0];
+    }
+
+    function minimax(b, isMax, depth) {
+      const w = checkWinner(b);
+      if (w === "X") return { score: 10 - depth, move: null };
+      if (w === "O") return { score: depth - 10, move: null };
+      if (isFull(b)) return { score: 0, move: null };
+
+      let bestMove = null;
+      if (isMax) {
+        let bestScore = -Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (b[i] !== null) continue;
+          b[i] = "X";
+          const { score } = minimax(b, false, depth + 1);
+          b[i] = null;
+          if (score > bestScore) { bestScore = score; bestMove = i; }
+        }
+        return { score: bestScore, move: bestMove };
+      } else {
+        let bestScore = Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (b[i] !== null) continue;
+          b[i] = "O";
+          const { score } = minimax(b, true, depth + 1);
+          b[i] = null;
+          if (score < bestScore) { bestScore = score; bestMove = i; }
+        }
+        return { score: bestScore, move: bestMove };
+      }
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function checkWinner(b) {
+      for (const [a, c, d] of WIN_LINES) {
+        if (b[a] && b[a] === b[c] && b[a] === b[d]) return b[a];
+      }
+      return null;
+    }
+
+    function isFull(b) {
+      return b.every(c => c !== null);
+    }
+
+    // ── New game ─────────────────────────────────────────────────────────────
+    function newGame() {
+      board = Array(9).fill(null);
+      currentPlayer = "O";
+      winner = null;
+      draw = false;
+      aiThinking = false;
+      cells.forEach(el => el.className = "cell");
+      render();
+    }
+
+    function setDifficulty(val) {
+      // Difficulty change takes effect on the next AI move
+    }
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+    render();
+  </script>
+</body>
+</html>
