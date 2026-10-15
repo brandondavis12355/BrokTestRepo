@@ -34,12 +34,13 @@ _winner: Optional[str] = None
 _draw: bool = False
 _ai_enabled: bool = True
 _ai_difficulty: str = "medium"  # easy | medium | hard
+_player_goes_first: bool = False  # if True, player (O) goes first; AI (X) starts otherwise
 
 
 def _reset_state() -> None:
     global _board, _current_player, _winner, _draw
     _board = g.Board()
-    _current_player = "X"
+    _current_player = "X" if not _player_goes_first else "O"
     _winner = None
     _draw = False
 
@@ -52,6 +53,7 @@ def _state_dict() -> dict:
         "draw": _draw,
         "ai_enabled": _ai_enabled,
         "ai_difficulty": _ai_difficulty,
+        "player_first": _player_goes_first,
     }
 
 
@@ -218,6 +220,17 @@ def set_difficulty():
         return jsonify({"error": "Invalid difficulty. Use easy, medium, or hard."}), 400
     _ai_difficulty = difficulty
     return jsonify({"ai_difficulty": difficulty})
+
+
+@app.route("/api/turn-order", methods=["POST"])
+def set_turn_order():
+    global _player_goes_first
+    data = request.get_json(silent=True) or {}
+    choice = data.get("choice", "ai")  # "player" or "ai"
+    if choice not in ("player", "ai"):
+        return jsonify({"error": "Invalid choice. Use 'player' or 'ai'."}), 400
+    _player_goes_first = (choice == "player")
+    return jsonify({"player_goes_first": _player_goes_first})
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
