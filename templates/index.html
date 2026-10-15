@@ -171,12 +171,6 @@
     let draw = false;
     let aiThinking = false;
 
-    const WIN_LINES = [
-      [0,1,2],[3,4,5],[6,7,8],
-      [0,3,6],[1,4,7],[2,5,8],
-      [0,4,8],[2,4,6]
-    ];
-
     // ── DOM refs ─────────────────────────────────────────────────────────────
     const cells = document.querySelectorAll(".cell");
     const statusEl = document.getElementById("status");
@@ -214,6 +208,11 @@
     }
 
     function highlightWinningLine(mark) {
+      const WIN_LINES = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+      ];
       for (const [a, b, c] of WIN_LINES) {
         if (board[a] === mark && board[b] === mark && board[c] === mark) {
           [a, b, c].forEach(i => cells[i].classList.add("win-cell"));
@@ -222,119 +221,65 @@
       }
     }
 
+    // ── Server communication ─────────────────────────────────────────────────
+    async function post(path, body) {
+      const res = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      return res.json();
+    }
+
+    function updateState(state) {
+      board = state.board;
+      currentPlayer = state.current_player;
+      winner = state.winner;
+      draw = state.draw;
+      aiThinking = false;
+      render();
+      if (currentPlayer === 'X' && !winner && !draw) {
+        aiThinking = true;
+        statusEl.textContent = 'AI is thinking…';
+        statusEl.className = 'status turn';
+        setTimeout(() => aiMove(), 400);
+      }
+    }
+
     // ── Player move ──────────────────────────────────────────────────────────
     cells.forEach(el => {
       el.addEventListener("click", () => {
         const pos = parseInt(el.dataset.pos, 10);
         if (winner || draw || aiThinking || board[pos] !== null) return;
-        if (currentPlayer !== "O") return;
+        if (currentPlayer !== 'O') return;
 
-        board[pos] = "O";
-        render();
-
-        winner = checkWinner(board);
-        if (winner) { render(); return; }
-        if (isFull(board)) { draw = true; render(); return; }
-
-        // AI's turn
-        currentPlayer = "X";
-        aiThinking = true;
-        render();
-        setTimeout(() => aiMove(), 400);
+        post('/api/move', { cell: pos + 1 })
+          .then(updateState);
       });
     });
 
-    // ── AI move (client-side mirror of server logic) ─────────────────────────
-    function aiMove() {
+    // ── AI move ──────────────────────────────────────────────────────────────
+    async function aiMove() {
       const difficulty = document.getElementById("difficulty").value;
-      const move = chooseAIMove(board, difficulty);
-      if (move === null) { aiThinking = false; return; }
-
-      board[move] = "X";
-      aiThinking = false;
-      currentPlayer = "O";
-
-      winner = checkWinner(board);
-      if (winner) { render(); return; }
-      if (isFull(board)) { draw = true; render(); return; }
-      render();
-    }
-
-    function chooseAIMove(b, difficulty) {
-      const available = [];
-      for (let i = 0; i < 9; i++) if (b[i] === null) available.push(i);
-      if (available.length === 0) return null;
-
-      if (difficulty === "easy") {
-        return available[Math.floor(Math.random() * available.length)];
-      }
-      if (difficulty === "medium") {
-        if (Math.random() < 0.5) {
-          const m = minimax(b, true, 0);
-          if (m.move !== null) return m.move;
-        }
-        return available[Math.floor(Math.random() * available.length)];
-      }
-      // hard
-      const m = minimax(b, true, 0);
-      return m.move !== null ? m.move : available[0];
-    }
-
-    function minimax(b, isMax, depth) {
-      const w = checkWinner(b);
-      if (w === "X") return { score: 10 - depth, move: null };
-      if (w === "O") return { score: depth - 10, move: null };
-      if (isFull(b)) return { score: 0, move: null };
-
-      let bestMove = null;
-      if (isMax) {
-        let bestScore = -Infinity;
-        for (let i = 0; i < 9; i++) {
-          if (b[i] !== null) continue;
-          b[i] = "X";
-          const { score } = minimax(b, false, depth + 1);
-          b[i] = null;
-          if (score > bestScore) { bestScore = score; bestMove = i; }
-        }
-        return { score: bestScore, move: bestMove };
-      } else {
-        let bestScore = Infinity;
-        for (let i = 0; i < 9; i++) {
-          if (b[i] !== null) continue;
-          b[i] = "O";
-          const { score } = minimax(b, true, depth + 1);
-          b[i] = null;
-          if (score < bestScore) { bestScore = score; bestMove = i; }
-        }
-        return { score: bestScore, move: bestMove };
-      }
-    }
-
-    // ── Helpers ──────────────────────────────────────────────────────────────
-    function checkWinner(b) {
-      for (const [a, c, d] of WIN_LINES) {
-        if (b[a] && b[a] === b[c] && b[a] === b[d]) return b[a];
-      }
-      return null;
-    }
-
-    function isFull(b) {
-      return b.every(c => c !== null);
+      const res = await fetch('/api/ai-move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ difficulty })
+      });
+      const state = await res.json();
+      updateState(state);
     }
 
     // ── New game ─────────────────────────────────────────────────────────────
     function newGame() {
-      board = Array(9).fill(null);
-      currentPlayer = "O";
-      winner = null;
-      draw = false;
-      aiThinking = false;
-      cells.forEach(el => el.className = "cell");
-      render();
+      post('/api/new-game', {})
+        .then(updateState);
     }
 
+    // ── Difficulty change ────────────────────────────────────────────────────
     function setDifficulty(val) {
-      // Difficulty change takes effect on the next AI move
+      post('/api/difficulty', { difficulty: val })
+        .then(() => {});
     }
 
     // ── Init ─────────────────────────────────────────────────────────────────
