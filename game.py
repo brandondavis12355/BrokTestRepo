@@ -8,6 +8,14 @@ Each cell holds 'X', 'O', or None (empty).
 from typing import List, Optional, Tuple
 
 
+class Player:
+    """A Tic Tac Toe player with a name and symbol."""
+
+    def __init__(self, name: str, symbol: str) -> None:
+        self.name = name
+        self.symbol = symbol
+
+
 class Board:
     """3x3 Tic Tac Toe board."""
 

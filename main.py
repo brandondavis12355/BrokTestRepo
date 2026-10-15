@@ -18,7 +18,7 @@ def print_board(board: Board) -> None:
     for row in range(3):
         cells = []
         for col in range(3):
-            val = board.cells[row][col]
+            val = board.cells[row * 3 + col]
             cells.append(f" {val} " if val else " · ")
         print(f"  │{cells[0]}│{cells[1]}│{cells[2]}│")
         if row < 2:
@@ -50,7 +50,7 @@ def get_move(player: Player, board: Board) -> int | None:
         if move < 1 or move > 9:
             print("  Out of range. Enter 1-9.")
             continue
-        if not board.is_empty(move):
+        if not board.is_empty(move - 1):
             print(f"  Cell {move} is taken. Pick another.")
             continue
         return move
@@ -72,12 +72,12 @@ def play_game() -> None:
             print(f"\n{players[current].name} quit. Game over.")
             return
 
-        board.place(move, players[current].symbol)
+        board.place(move - 1, players[current].symbol)
         print_board(board)
 
         winner = check_winner(board)
         if winner:
-            print(f"\n🎉 {winner.name} wins! Final board:")
+            print(f"\n🎉 Player {winner} wins! Final board:")
             print_board(board)
             return
 
