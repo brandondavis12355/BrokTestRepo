@@ -240,8 +240,15 @@
       });
       const data = await res.json();
 
-      // After setting turn order, start the game
-      const gameState = await fetch('/api/new-game').then(r => r.json());
+      // After setting turn order, start the game — use post() helper with error handling
+      let gameState;
+      try {
+        gameState = await post('/api/new-game', {});
+      } catch (err) {
+        // If the server is unavailable or returns an error, still close the overlay
+        console.error('Failed to start game:', err);
+        gameState = { board: Array(9).fill(null), current_player: 'X' };
+      }
 
       board = gameState.board;
       currentPlayer = gameState.current_player;
