@@ -177,7 +177,7 @@
     <h2>Who goes first?</h2>
     <p>Choose your side and decide who starts the game.</p>
     <div class="turn-buttons">
-      <button class="btn-turn" onclick="chooseTurn('player')">You go first (X)</button>
+      <button class="btn-turn" onclick="chooseTurn('player')">You go first (O)</button>
       <button class="btn-turn" onclick="chooseTurn('ai')">AI goes first (X)</button>
     </div>
   </div>
@@ -232,13 +232,21 @@
 
     // ── Turn-order selection ─────────────────────────────────────────────────
     async function chooseTurn(choice) {
-      // choice: "player" (player goes first as X) or "ai" (AI goes first as X)
-      const res = await fetch('/api/turn-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ choice })
-      });
-      const data = await res.json();
+      // choice: "player" (player goes first as O) or "ai" (AI goes first as X)
+      try {
+        const res = await fetch('/api/turn-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ choice })
+        });
+        if (!res.ok) {
+          console.error('Failed to set turn order:', res.status, res.statusText);
+        } else {
+          await res.json();
+        }
+      } catch (err) {
+        console.error('Turn-order request failed:', err);
+      }
 
       // After setting turn order, start the game — use post() helper with error handling
       let gameState;
