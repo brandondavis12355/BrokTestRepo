@@ -40,7 +40,8 @@ _player_goes_first: bool = False  # if True, player (O) goes first; AI (X) start
 def _reset_state() -> None:
     global _board, _current_player, _winner, _draw
     _board = g.Board()
-    _current_player = "O" if _player_goes_first else "X"
+    # When player goes first, they are X (the first player). Otherwise AI (X) starts.
+    _current_player = "X" if _player_goes_first else "O"
     _winner = None
     _draw = False
 
