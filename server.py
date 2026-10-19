@@ -34,13 +34,13 @@ _winner: Optional[str] = None
 _draw: bool = False
 _ai_enabled: bool = True
 _ai_difficulty: str = "medium"  # easy | medium | hard
-_player_goes_first: bool = False  # if True, player (X) goes first; AI (O) starts otherwise
+_player_goes_first: bool = False  # if True, player (O) goes first; AI (X) starts otherwise
 
 
 def _reset_state() -> None:
     global _board, _current_player, _winner, _draw
     _board = g.Board()
-    _current_player = "X" if _player_goes_first else "O"
+    _current_player = "O" if _player_goes_first else "X"
     _winner = None
     _draw = False
 
