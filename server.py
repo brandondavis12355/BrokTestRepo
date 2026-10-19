@@ -29,18 +29,22 @@ app = Flask(__name__, static_folder="static", template_folder="templates")
 
 # In-memory game state (single player session for simplicity)
 _board: g.Board = g.Board()
-_current_player: str = "X"  # player is O, AI is X
+# The symbols are fixed (the page says "You are O, AI is X"). Only who MOVES first is chosen.
+PLAYER_SYMBOL = "O"
+AI_SYMBOL = "X"
+
+_current_player: str = AI_SYMBOL  # whoever moves first; set by _reset_state()
 _winner: Optional[str] = None
 _draw: bool = False
 _ai_enabled: bool = True
 _ai_difficulty: str = "medium"  # easy | medium | hard
-_player_goes_first: bool = False  # if True, player (X) goes first; AI (O) starts otherwise
+_player_goes_first: bool = False  # if True, the player (O) moves first; otherwise the AI (X) does
 
 
 def _reset_state() -> None:
     global _board, _current_player, _winner, _draw
     _board = g.Board()
-    _current_player = "X" if _player_goes_first else "O"
+    _current_player = PLAYER_SYMBOL if _player_goes_first else AI_SYMBOL
     _winner = None
     _draw = False
 
@@ -167,15 +171,14 @@ def make_move():
     if _winner is not None or _draw:
         return jsonify({"error": "Game is already over"}), 400
 
-    # Player can be X or O depending on who goes first
-    if _current_player == "X":
+    if _current_player != PLAYER_SYMBOL:
         return jsonify({"error": "It's not the player's turn (AI's turn)"}), 400
 
     pos = cell - 1  # convert 1-9 to 0-8
     if not _board.place(pos, _current_player):
         return jsonify({"error": f"Cell {cell} is already taken"}), 400
 
-    _current_player = "O" if _current_player == "X" else "X"
+    _current_player = AI_SYMBOL
 
     # Check for game end
     winner = g.check_winner(_board)
@@ -187,7 +190,7 @@ def make_move():
     # If AI is enabled, make the AI's move
     if _ai_enabled and not _winner and not _draw:
         try:
-            ai_move_result = _do_ai_move(ai_symbol)
+            ai_move_result = _do_ai_move(AI_SYMBOL)
             return jsonify({**_state_dict(), **ai_move_result})
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
@@ -202,16 +205,16 @@ def ai_move():
     if _winner is not None or _draw:
         return jsonify({"error": "Game is already over"}), 400
 
-    if _current_player == "O":
+    if _current_player != AI_SYMBOL:
         return jsonify({"error": "It's not the AI's turn (player's turn)"}), 400
 
     try:
-        move = _ai_move(_board, _ai_difficulty, ai_symbol)
+        move = _ai_move(_board, _ai_difficulty, AI_SYMBOL)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
-    _board.place(move, ai_symbol)
-    _current_player = player_symbol
+    _board.place(move, AI_SYMBOL)
+    _current_player = PLAYER_SYMBOL
 
     winner = g.check_winner(_board)
     if winner:
@@ -240,7 +243,7 @@ def _do_ai_move(ai_symbol: str) -> dict:
         raise
 
     _board.place(move, ai_symbol)
-    _current_player = ai_symbol  # player already moved; now it's AI's turn in this flow
+    _current_player = PLAYER_SYMBOL  # the AI has moved; it is the player's turn
 
     winner = g.check_winner(_board)
     if winner:
