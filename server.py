@@ -40,9 +40,10 @@ _player_goes_first: bool = False  # if True, player (O) goes first; AI (X) start
 def _reset_state() -> None:
     global _board, _current_player, _winner, _draw
     _board = g.Board()
-    # When player goes first (_player_goes_first=True), player is X and starts.
-    # When AI goes first (_player_goes_first=False), AI is O and starts.
-    _current_player = "X" if _player_goes_first else "O"
+    # X always goes first (traditional Tic Tac Toe rule).
+    # When player goes first (_player_goes_first=True), player is X.
+    # When AI goes first (_player_goes_first=False), AI is X.
+    _current_player = "O" if _player_goes_first else "X"
     _winner = None
     _draw = False
 
@@ -61,28 +62,31 @@ def _state_dict() -> dict:
 
 # ── AI opponent (minimax with difficulty levels) ───────────────────────────────
 
-def _minimax(board: g.Board, is_maximizing: bool, depth: int) -> tuple[int, Optional[int]]:
+def _minimax(board: g.Board, ai_symbol: str, is_maximizing: bool, depth: int) -> tuple[int, Optional[int]]:
     """
     Minimax with alpha-beta pruning.
     Returns (score, best_move).
-    X is the AI (maximizing), O is the human (minimizing).
+    The AI plays `ai_symbol` and tries to maximize; the opponent plays the other symbol
+    and tries to minimize.
     """
     winner = g.check_winner(board)
-    if winner == "X":
+    if winner == ai_symbol:
         return (10 - depth, None)
-    if winner == "O":
+    other_symbol = _get_other_symbol(ai_symbol)
+    if winner == other_symbol:
         return (depth - 10, None)
     if g.check_draw(board):
         return (0, None)
 
     best_move: Optional[int] = None
+    other_symbol = _get_other_symbol(ai_symbol)
     if is_maximizing:
         best_score = float("-inf")
         for move in g.get_available_moves(board):
             new_board = g.Board()
             new_board.cells = list(board.cells)
-            new_board.place(move, "X")
-            score, _ = _minimax(new_board, False, depth + 1)
+            new_board.place(move, ai_symbol)
+            score, _ = _minimax(new_board, ai_symbol, False, depth + 1)
             if score > best_score:
                 best_score = score
                 best_move = move
@@ -92,15 +96,20 @@ def _minimax(board: g.Board, is_maximizing: bool, depth: int) -> tuple[int, Opti
         for move in g.get_available_moves(board):
             new_board = g.Board()
             new_board.cells = list(board.cells)
-            new_board.place(move, "O")
-            score, _ = _minimax(new_board, True, depth + 1)
+            new_board.place(move, other_symbol)
+            score, _ = _minimax(new_board, ai_symbol, True, depth + 1)
             if score < best_score:
                 best_score = score
                 best_move = move
         return (best_score, best_move)
 
 
-def _ai_move(board: g.Board, difficulty: str) -> int:
+def _get_other_symbol(symbol: str) -> str:
+    """Return the other symbol."""
+    return "O" if symbol == "X" else "X"
+
+
+def _ai_move(board: g.Board, difficulty: str, ai_symbol: str) -> int:
     """
     Choose an AI move based on difficulty.
     - easy:   random move
@@ -114,14 +123,17 @@ def _ai_move(board: g.Board, difficulty: str) -> int:
     if difficulty == "easy":
         return random.choice(available)
 
+    # Determine if AI is the maximizing player (AI=X) or minimizing (AI=O)
+    is_maximizing = (ai_symbol == "X")
+
     if difficulty == "medium":
         if random.random() < 0.5:
-            _, move = _minimax(board, True, 0)
+            _, move = _minimax(board, ai_symbol, is_maximizing, 0)
             return move if move is not None else random.choice(available)
         return random.choice(available)
 
     # hard: always optimal
-    _, move = _minimax(board, True, 0)
+    _, move = _minimax(board, ai_symbol, is_maximizing, 0)
     return move if move is not None else random.choice(available)
 
 
@@ -158,15 +170,18 @@ def make_move():
     if _winner is not None or _draw:
         return jsonify({"error": "Game is already over"}), 400
 
-    # Player is always O; AI is X
-    if _current_player != "O":
+    # Determine player symbol: X when player goes first, O otherwise
+    player_symbol = "X" if _player_goes_first else "O"
+    ai_symbol = "O" if _player_goes_first else "X"
+
+    if _current_player != player_symbol:
         return jsonify({"error": "It's not the player's turn"}), 400
 
     pos = cell - 1  # convert 1-9 to 0-8
-    if not _board.place(pos, "O"):
+    if not _board.place(pos, player_symbol):
         return jsonify({"error": f"Cell {cell} is already taken"}), 400
 
-    _current_player = "X"
+    _current_player = ai_symbol
 
     # Check for game end
     winner = g.check_winner(_board)
@@ -174,6 +189,14 @@ def make_move():
         _winner = winner
     elif g.check_draw(_board):
         _draw = True
+
+    # If AI is enabled, make the AI's move
+    if _ai_enabled and not _winner and not _draw:
+        try:
+            ai_move_result = _do_ai_move(ai_symbol)
+            return jsonify({**_state_dict(), **ai_move_result})
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
 
     return jsonify(_state_dict())
 
@@ -185,16 +208,20 @@ def ai_move():
     if _winner is not None or _draw:
         return jsonify({"error": "Game is already over"}), 400
 
-    if _current_player != "X":
+    # Determine AI symbol: X when player goes first, O otherwise
+    ai_symbol = "X" if _player_goes_first else "O"
+    player_symbol = "O" if _player_goes_first else "X"
+
+    if _current_player != ai_symbol:
         return jsonify({"error": "It's not the AI's turn"}), 400
 
     try:
-        move = _ai_move(_board, _ai_difficulty)
+        move = _ai_move(_board, _ai_difficulty, ai_symbol)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
-    _board.place(move, "X")
-    _current_player = "O"
+    _board.place(move, ai_symbol)
+    _current_player = player_symbol
 
     winner = g.check_winner(_board)
     if winner:
@@ -205,6 +232,35 @@ def ai_move():
     result = _state_dict()
     result["ai_move"] = move + 1  # return 1-9 for the front end
     return jsonify(result)
+
+
+def _do_ai_move(ai_symbol: str) -> dict:
+    """
+    Internal helper: let the AI make one move and update state.
+    Called from make_move() when AI is enabled after the player's move.
+    """
+    global _current_player, _winner, _draw
+
+    if _winner is not None or _draw:
+        return {}
+
+    try:
+        move = _ai_move(_board, _ai_difficulty, ai_symbol)
+    except ValueError as e:
+        raise
+
+    _board.place(move, ai_symbol)
+    _current_player = ai_symbol  # player already moved; now it's AI's turn in this flow
+
+    winner = g.check_winner(_board)
+    if winner:
+        _winner = winner
+    elif g.check_draw(_board):
+        _draw = True
+
+    result = _state_dict()
+    result["ai_move"] = move + 1
+    return result
 
 
 @app.route("/api/new-game", methods=["POST"])
