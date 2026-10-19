@@ -40,10 +40,7 @@ _player_goes_first: bool = False  # if True, player (O) goes first; AI (X) start
 def _reset_state() -> None:
     global _board, _current_player, _winner, _draw
     _board = g.Board()
-    # X always goes first (traditional Tic Tac Toe rule).
-    # When player goes first (_player_goes_first=True), player is X.
-    # When AI goes first (_player_goes_first=False), AI is X.
-    _current_player = "O" if _player_goes_first else "X"
+    _current_player = "X"  # X always goes first
     _winner = None
     _draw = False
 
