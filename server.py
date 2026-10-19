@@ -29,7 +29,7 @@ app = Flask(__name__, static_folder="static", template_folder="templates")
 
 # In-memory game state (single player session for simplicity)
 _board: g.Board = g.Board()
-_current_player: str = "X"  # AI is X, player is O
+_current_player: str = "X"  # player is O, AI is X
 _winner: Optional[str] = None
 _draw: bool = False
 _ai_enabled: bool = True
