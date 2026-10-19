@@ -34,16 +34,13 @@ _winner: Optional[str] = None
 _draw: bool = False
 _ai_enabled: bool = True
 _ai_difficulty: str = "medium"  # easy | medium | hard
-_player_goes_first: bool = False  # if True, player (O) goes first; AI (X) starts otherwise
+_player_goes_first: bool = False  # if True, player (X) goes first; AI (O) starts otherwise
 
 
 def _reset_state() -> None:
     global _board, _current_player, _winner, _draw
     _board = g.Board()
-    # X always goes first (traditional Tic Tac Toe rule).
-    # When player goes first (_player_goes_first=True), player is O.
-    # When AI goes first (_player_goes_first=False), AI is X.
-    _current_player = "O" if _player_goes_first else "X"
+    _current_player = "X" if _player_goes_first else "O"
     _winner = None
     _draw = False
 
@@ -170,18 +167,15 @@ def make_move():
     if _winner is not None or _draw:
         return jsonify({"error": "Game is already over"}), 400
 
-    # Determine player symbol: X when player goes first, O otherwise
-    player_symbol = "X" if _player_goes_first else "O"
-    ai_symbol = "O" if _player_goes_first else "X"
-
-    if _current_player != player_symbol:
-        return jsonify({"error": "It's not the player's turn"}), 400
+    # Player can be X or O depending on who goes first
+    if _current_player == "X":
+        return jsonify({"error": "It's not the player's turn (AI's turn)"}), 400
 
     pos = cell - 1  # convert 1-9 to 0-8
-    if not _board.place(pos, player_symbol):
+    if not _board.place(pos, _current_player):
         return jsonify({"error": f"Cell {cell} is already taken"}), 400
 
-    _current_player = ai_symbol
+    _current_player = "O" if _current_player == "X" else "X"
 
     # Check for game end
     winner = g.check_winner(_board)
@@ -208,12 +202,8 @@ def ai_move():
     if _winner is not None or _draw:
         return jsonify({"error": "Game is already over"}), 400
 
-    # Determine AI symbol: X when player goes first, O otherwise
-    ai_symbol = "X" if _player_goes_first else "O"
-    player_symbol = "O" if _player_goes_first else "X"
-
-    if _current_player != ai_symbol:
-        return jsonify({"error": "It's not the AI's turn"}), 400
+    if _current_player == "O":
+        return jsonify({"error": "It's not the AI's turn (player's turn)"}), 400
 
     try:
         move = _ai_move(_board, _ai_difficulty, ai_symbol)
