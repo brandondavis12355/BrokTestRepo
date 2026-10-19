@@ -8,7 +8,6 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0f172a;
       color: #e2e8f0;
       min-height: 100vh;
       display: flex;
@@ -16,6 +15,77 @@
       align-items: center;
       justify-content: center;
       padding: 1rem;
+      /* Deep gradient base */
+      background: #0b0f1a;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Deep gradient base layer */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 30% 20%, rgba(99, 102, 241, 0.25) 0%, transparent 55%),
+        radial-gradient(ellipse at 75% 65%, rgba(168, 85, 247, 0.20) 0%, transparent 50%),
+        radial-gradient(ellipse at 20% 85%, rgba(236, 72, 153, 0.15) 0%, transparent 45%),
+        radial-gradient(ellipse at 90% 10%, rgba(59, 130, 246, 0.18) 0%, transparent 50%);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Animated moving gradient orbs */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.18) 0%, transparent 40%),
+        radial-gradient(circle at 20% 70%, rgba(59, 130, 246, 0.15) 0%, transparent 35%),
+        radial-gradient(circle at 80% 30%, rgba(236, 72, 153, 0.12) 0%, transparent 35%);
+      animation: orbMove 15s ease-in-out infinite alternate;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    @keyframes orbMove {
+      0%   { transform: translate(0, 0) scale(1); }
+      25%  { transform: translate(3%, -4%) scale(1.05); }
+      50%  { transform: translate(-2%, 3%) scale(0.97); }
+      75%  { transform: translate(4%, 1%) scale(1.03); }
+      100% { transform: translate(-3%, -2%) scale(1); }
+    }
+
+    /* Subtle dot grid for texture */
+    .dot-grid {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background-image: radial-gradient(circle, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* Floating particles */
+    .particles {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      will-change: transform, opacity;
+      animation: float linear infinite;
+    }
+    @keyframes float {
+      0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { transform: translateY(-10vh) scale(1.2); opacity: 0; }
     }
     h1 {
       font-size: 1.75rem;
@@ -47,6 +117,8 @@
       width: 300px;
       height: 300px;
       margin-bottom: 1.5rem;
+      position: relative;
+      z-index: 1;
     }
     .cell {
       background: #1e293b;
@@ -84,6 +156,8 @@
       align-items: center;
       flex-wrap: wrap;
       justify-content: center;
+      position: relative;
+      z-index: 1;
     }
     button {
       font-size: 0.95rem;
@@ -124,6 +198,8 @@
       font-size: 0.8rem;
       color: #64748b;
       text-align: center;
+      position: relative;
+      z-index: 1;
     }
     .legend span.x { color: #60a5fa; font-weight: 700; }
     .legend span.o { color: #f472b6; font-weight: 700; }
@@ -187,6 +263,10 @@
 
   <div id="status" class="status turn">Your turn — pick a cell</div>
 
+  <!-- Animated background layers -->
+  <div class="dot-grid"></div>
+  <div class="particles" id="particles"></div>
+
   <div class="board" id="board">
     <div class="cell" data-pos="0"></div>
     <div class="cell" data-pos="1"></div>
@@ -216,6 +296,43 @@
   </p>
 
   <script>
+    // ── Animated floating particles (capped at ~50 for performance) ───────────
+    (function initParticles() {
+      const container = document.getElementById('particles');
+      const PARTICLE_COUNT = 50;
+      const colors = [
+        'rgba(139, 92, 246, 0.45)',   // violet
+        'rgba(59, 130, 246, 0.40)',   // blue
+        'rgba(236, 72, 153, 0.35)',   // pink
+        'rgba(99, 102, 241, 0.40)',   // indigo
+        'rgba(168, 85, 247, 0.35)',   // purple
+        'rgba(34, 211, 238, 0.30)',   // cyan
+      ];
+
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const el = document.createElement('div');
+        el.classList.add('particle');
+        const size = 2 + Math.random() * 4; // 2–6px
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const left = Math.random() * 100;
+        const duration = 12 + Math.random() * 18; // 12–30s
+        const delay = -(Math.random() * duration); // stagger start
+        const opacity = 0.3 + Math.random() * 0.5;
+
+        el.style.cssText = `
+          width: ${size}px;
+          height: ${size}px;
+          left: ${left}%;
+          background: ${color};
+          box-shadow: 0 0 ${size * 2}px ${color};
+          animation-duration: ${duration}s;
+          animation-delay: ${delay}s;
+          opacity: ${opacity};
+        `;
+        container.appendChild(el);
+      }
+    })();
+
     // ── State ────────────────────────────────────────────────────────────────
     let board = Array(9).fill(null);
     let currentPlayer = "O";   // player is always O
