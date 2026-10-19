@@ -43,7 +43,7 @@ def _reset_state() -> None:
     # X always goes first (traditional Tic Tac Toe rule).
     # When player goes first (_player_goes_first=True), player is O.
     # When AI goes first (_player_goes_first=False), AI is X.
-    _current_player = "X" if _player_goes_first else "O"
+    _current_player = "O" if _player_goes_first else "X"
     _winner = None
     _draw = False
 
